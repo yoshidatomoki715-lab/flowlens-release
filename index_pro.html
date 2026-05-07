@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowLens - Sankey Diagram Tool</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:"Yu Gothic","游ゴシック","Hiragino Sans","ヒラギノ角ゴ Pro W3","Meiryo","メイリオ",sans-serif;font-size:14px;color:#1e293b;background:#f1f5f9}
+
+/* ── HEADER ── */
+#hdr{
+  display:flex;align-items:center;gap:14px;
+  padding:0 22px;height:52px;
+  background:linear-gradient(135deg,#1e3a5f 0%,#162c4a 100%);
+  color:#fff;flex-shrink:0;
+  box-shadow:0 2px 10px rgba(0,0,0,.3);z-index:20;
+}
+#hdr .logo{font-size:21px;font-weight:700;letter-spacing:1.5px;color:#e2f0ff}
+#hdr .tag{font-size:11px;color:#7eb3e8;margin-top:2px;letter-spacing:.3px}
+#hdr-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+#save-ind{font-size:11px;color:#4a8;background:rgba(0,180,100,.12);padding:2px 8px;border-radius:10px;border:1px solid rgba(0,180,100,.25);opacity:0;transition:opacity .4s}
+#save-ind.show{opacity:1}
+.hbtn{
+  padding:4px 11px;border-radius:5px;border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.08);color:#c8dff5;font:500 12px/1.5 inherit;
+  cursor:pointer;transition:all .12s;
+}
+.hbtn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35)}
+.ver{font-size:11px;color:#4a7dab;background:rgba(255,255,255,.06);padding:3px 8px;border-radius:10px;border:1px solid rgba(255,255,255,.1)}
+
+/* ── MAIN ── */
+#main{display:flex;height:calc(100vh - 52px);overflow:hidden}
+
+/* ── PANES ── */
+.pane{display:flex;flex-direction:column;overflow:hidden;background:#fff;transition:none}
+#lp{width:50%;min-width:0;border-right:1px solid #dde5ef}
+#rp{flex:1;min-width:0}
+.pane.hidden{display:none!important}
+
+.ph{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 14px;background:#eef2f8;border-bottom:1px solid #dde5ef;
+  flex-shrink:0;min-height:40px;gap:8px;
+}
+.ph-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;flex-wrap:wrap}
+.pt{font-size:12px;font-weight:700;color:#4a6080;letter-spacing:.4px;white-space:nowrap}
+.bmax{
+  background:none;border:1px solid #b8c8dc;border-radius:4px;
+  width:26px;height:26px;cursor:pointer;font-size:15px;color:#5a7ba0;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:all .12s;
+}
+.bmax:hover{background:#dde8f4;border-color:#6e9ec8}
+
+/* ── SEPARATOR ── */
+#sep{
+  width:8px;background:#dde5ef;cursor:col-resize;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;letter-spacing:-3px;color:#a0b4cc;
+  transition:background .15s;user-select:none;
+}
+#sep:hover,#sep.drag{background:#3b7dd8;color:#fff}
+#sep.hidden{display:none!important}
+
+/* ── TOOLBAR ── */
+.tb{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:7px 12px;background:#f8fafc;border-bottom:1px solid #e8eef6;
+  flex-shrink:0;
+}
+.sp{flex:1}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:5px 12px;border-radius:5px;border:1px solid;
+  font:500 12px/1.5 inherit;cursor:pointer;transition:all .12s;white-space:nowrap;
+}
+.bg{background:#fff;color:#4a6080;border-color:#c0d0e0}
+.bg:hover{background:#eef4fc;border-color:#90aed0}
+.bg:disabled,.bg.dis{background:#f0f4f8;color:#a8bace;border-color:#dde5ef;cursor:not-allowed;pointer-events:none}
+.baxis{background:#fff;color:#2563eb;border-color:#93c5fd;font-size:11px;padding:3px 10px}
+.baxis:hover,.baxis.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.baxis.on{box-shadow:0 1px 4px rgba(37,99,235,.3)}
+.bdanger{background:#fff;color:#e53e3e;border-color:#fc8181}
+.bdanger:hover{background:#fff5f5}
+.bdanger:disabled{background:#f0f4f8;color:#a8bace;border-color:#dde5ef;cursor:not-allowed}
+
+/* ── TABLE ── */
+.twrap{flex:1;overflow-x:auto;overflow-y:auto}
+table{border-collapse:collapse;min-width:600px;width:max-content;font-size:13px}
+thead th{
+  position:sticky;top:0;z-index:2;
+  padding:8px 10px;background:#1e3a5f;color:#e8f0fa;
+  font-weight:600;text-align:left;white-space:nowrap;font-size:12px;
+  position:relative;
+}
+.col-rsz{position:absolute;right:0;top:0;bottom:0;width:5px;cursor:col-resize;z-index:4}
+.col-rsz:hover,.col-rsz.rsz-active{background:rgba(255,255,255,.3)}
+.col-cb-wrap{text-align:center;margin-bottom:3px}
+.col-cb-wrap input{cursor:pointer;accent-color:#7dd3fc}
+thead th.cc{background:#1e4fa0;cursor:pointer}
+thead th.cc:hover{background:#2563eb}
+thead th.cc.axis-on{background:#1d4ed8;box-shadow:inset 0 -2px 0 #7dd3fc}
+.thi{display:flex;align-items:center;gap:4px}
+.thx{font-size:10px;opacity:.6}
+tbody tr{cursor:default}
+tbody tr:nth-child(even) td{background:#fafbfd}
+tbody tr:hover td{background:#eff6ff}
+tbody tr.sel td{background:#dbeafe!important}
+tbody tr.row-dragging{opacity:.35}
+tbody tr.row-drag-over td{background:#dbeafe!important;border-top:2px solid #2563eb!important}
+td{padding:3px 6px;border-bottom:1px solid #f0f4f8;vertical-align:middle;white-space:nowrap}
+td.ac-wrap{min-width:120px}
+td.rn{color:#a0b8ce;font-size:11px;text-align:center;width:28px}
+td.dh{width:18px;text-align:center;color:#b0c4d8;font-size:13px;cursor:grab;user-select:none}
+td.dh:active{cursor:grabbing}
+td input{
+  width:100%;border:none;background:transparent;
+  font:13px/1.5 inherit;color:#1e293b;padding:3px 5px;outline:none;
+}
+td input:focus{background:#eff6ff;border-radius:3px;box-shadow:inset 0 0 0 1px #93c5fd}
+td input[type=number]{text-align:right}
+td.cbx{width:28px;text-align:center;padding:0 4px}
+thead th.cb-th{width:28px;text-align:center;padding:4px}
+thead th.cb-th input{cursor:pointer}
+tfoot td{
+  padding:6px 10px;background:#eef2f8;border-top:2px solid #c8d8ea;
+  font-size:12px;font-weight:700;color:#3a5578;
+}
+tfoot .sum{text-align:right;color:#1e4fa0;font-size:13px}
+tfoot .sum-lbl{color:#6a88a8;font-size:11px;font-weight:600}
+
+/* ── FONT BAR ── */
+.fb{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:6px 12px;background:#f8fafc;border-bottom:1px solid #e8eef6;
+  flex-shrink:0;font-size:12px;color:#5a7ba0;
+}
+.fb label{font-weight:600}
+.fb select,.fb input[type=number]{
+  border:1px solid #c0d0e0;border-radius:4px;padding:3px 7px;
+  font:inherit;background:#fff;color:#1e293b;
+}
+.fb input[type=number]{width:56px}
+input[type=range]{accent-color:#2563eb;width:80px;vertical-align:middle}
+
+/* ── CHART ── */
+#ca{flex:1;overflow-x:hidden;overflow-y:auto;position:relative;background:#fff}
+#svg{display:block}
+.em{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;
+  color:#94a3b8;font-size:14px;pointer-events:none;
+}
+.em-ic{font-size:56px;line-height:1}
+.em-sub{font-size:12px;color:#b0c0d0}
+
+/* ── EXPORT BAR ── */
+.eb{
+  display:flex;align-items:center;gap:8px;padding:7px 12px;
+  background:#f8fafc;border-top:1px solid #e8eef6;flex-shrink:0;
+}
+.eb-lbl{font-size:12px;color:#7a96b0;font-weight:600}
+
+/* ── AXIS GROUP ── */
+.ag{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.albl{font-size:11px;color:#8aaccc;font-weight:700;white-space:nowrap;letter-spacing:.3px}
+
+/* ── TOOLTIP ── */
+#tip{
+  position:fixed;z-index:9999;
+  background:rgba(15,23,42,.92);color:#f0f8ff;
+  padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.7;
+  pointer-events:none;display:none;white-space:nowrap;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);
+  border:1px solid rgba(255,255,255,.08);
+}
+#tip strong{color:#7dd3fc}
+
+/* ── MODAL ── */
+.overlay{
+  display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);
+  z-index:1000;align-items:center;justify-content:center;
+}
+.overlay.open{display:flex}
+.modal{
+  background:#fff;border-radius:10px;padding:0;width:520px;max-width:94vw;
+  box-shadow:0 12px 40px rgba(0,0,0,.3);overflow:hidden;
+}
+.modal-hd{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;background:#1e3a5f;color:#e2f0ff;
+}
+.modal-hd h2{font-size:15px;font-weight:700}
+.modal-close{background:none;border:none;color:#93c5fd;font-size:20px;cursor:pointer;line-height:1}
+.modal-body{padding:20px}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;background:#f8fafc;border-top:1px solid #e8eef6}
+.form-row{margin-bottom:14px}
+.form-row label{display:block;font-size:12px;font-weight:600;color:#4a6080;margin-bottom:5px}
+.form-row textarea,.form-row input[type=text]{
+  width:100%;border:1px solid #c0d0e0;border-radius:5px;padding:8px 10px;
+  font:13px/1.5 monospace;color:#1e293b;resize:vertical;
+}
+.form-row textarea{height:140px}
+.form-hint{font-size:11px;color:#94a3b8;margin-top:4px}
+.upload-area{
+  border:2px dashed #c0d0e0;border-radius:8px;padding:24px;text-align:center;
+  color:#7a96b0;font-size:13px;cursor:pointer;transition:all .15s;
+  background:#fafbff;
+}
+.upload-area:hover,.upload-area.over{border-color:#3b7dd8;background:#eff6ff;color:#2563eb}
+.upload-area input{display:none}
+
+/* ── ROW LIMIT BADGE ── */
+.rlimit{
+  font-size:11px;padding:2px 7px;border-radius:10px;
+  background:#fff3cd;color:#856404;border:1px solid #fde68a;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:#f0f4f8}
+::-webkit-scrollbar-thumb{background:#c0d0e0;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#90aed0}
+
+/* ── AUTOCOMPLETE DROPDOWN ── */
+.ac-wrap{position:relative}
+.ac-drop{
+  display:none;position:absolute;top:100%;left:0;z-index:200;
+  background:#fff;border:1px solid #c0d0e0;border-top:none;
+  border-radius:0 0 5px 5px;max-height:160px;overflow-y:auto;
+  box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:100%;white-space:nowrap;
+}
+.ac-item{
+  padding:4px 10px;font-size:12px;color:#1e293b;cursor:pointer;
+}
+.ac-item:hover,.ac-item.ac-active{background:#eff6ff;color:#2563eb}
+
+/* ── CONTEXT MENU ── */
+.ctx-menu{
+  position:fixed;background:#fff;border:1px solid #dde5ef;border-radius:8px;
+  box-shadow:0 8px 24px rgba(0,0,0,.15);padding:4px 0;z-index:8000;
+  min-width:168px;display:none;
+}
+.ctx-item{
+  padding:7px 16px;font-size:13px;color:#1e293b;cursor:pointer;user-select:none;
+}
+.ctx-item:hover{background:#eff6ff;color:#2563eb}
+.ctx-item.ctx-danger{color:#dc2626}
+.ctx-item.ctx-danger:hover{background:#fef2f2;color:#b91c1c}
+.ctx-sep{height:1px;background:#e8eef6;margin:3px 0;}
+
+/* ── NODE HIGHLIGHT ── */
+.node-dimmed{opacity:.2}
+.link-dimmed{opacity:.08}
+.link-highlight{opacity:.85!important}
+.node-highlight{opacity:1!important}
+/* ── CROSS HIGHLIGHT ── */
+tbody tr.hl-row td{background:#ffe082!important}
+
+/* ── CHART RESIZE HANDLE ── */
+#rp-resize{
+  height:6px;background:#dde5ef;cursor:ns-resize;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;color:#a0b4cc;user-select:none;transition:background .15s;
+}
+#rp-resize:hover,#rp-resize.rdrag{background:#3b7dd8;color:#fff}
+
+/* ── SIZE INFO BAR ── */
+.size-badge{
+  display:flex;align-items:center;justify-content:flex-end;
+  padding:2px 10px;background:#f8fafc;border-top:1px solid #e8eef6;
+  font-size:11px;color:#7a96b0;flex-shrink:0;white-space:nowrap;
+  user-select:none;
+}
+
+/* ── NODE DRAG ── */
+.sk-node{cursor:grab}
+.sk-node:active{cursor:grabbing}
+.sk-label{cursor:move}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div>
+    <div class="logo">FlowLens</div>
+    <div class="tag">Sankey Diagram Tool</div>
+  </div>
+  <div id="hdr-right">
+    <span id="save-ind">● 保存済み</span>
+    <button class="hbtn" onclick="openImport()">📂 インポート</button>
+    <button class="hbtn" onclick="exportJSON()">💾 データ保存</button>
+    <span class="ver" style="color:#f0c040;border-color:rgba(240,192,64,.4)">Pro · v1.1</span>
+  </div>
+</div>
+
+<div id="main">
+
+  <!-- ── LEFT PANE ── -->
+  <div class="pane" id="lp">
+    <div class="ph">
+      <span class="pt">データ入力</span>
+      <span id="rlbl" class="rlimit" style="display:none"></span>
+      <button class="bmax" id="bmxl" title="左ペインを最大化" onclick="toggleMax('l')">⤢</button>
+    </div>
+    <div class="tb">
+      <button class="btn bg" id="badd" onclick="addRow()">＋ 行を追加</button>
+      <button class="btn bg" onclick="addCol()">＋ 列を追加</button>
+      <button class="btn bdanger" id="bdel-rows" onclick="delSelectedRows()" disabled>選択した行を削除</button>
+      <button class="btn bdanger" id="bdel-cols" onclick="delSelectedCols()" disabled>選択した列を削除</button>
+      <div class="sp"></div>
+      <button class="btn bdanger" onclick="clearAll()">クリア</button>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead id="th"></thead>
+        <tbody id="tb"></tbody>
+        <tfoot id="tf"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SEPARATOR ── -->
+  <div id="sep">⋮</div>
+
+  <!-- ── RIGHT PANE ── -->
+  <div class="pane" id="rp">
+    <div class="ph">
+      <div class="ph-left">
+        <span class="pt">サンキー図</span>
+        <div class="ag" id="ag"></div>
+      </div>
+      <button class="bmax" id="bmxr" title="右ペインを最大化" onclick="toggleMax('r')">⤢</button>
+    </div>
+    <div class="fb">
+      <label>カラー:</label>
+      <select id="color-mode" onchange="setColorMode(this.value)">
+        <option value="full">フルカラー</option>
+        <option value="mono">モノトーン</option>
+        <option value="dark">ダーク</option>
+        <option value="blue">コーポレートブルー</option>
+        <option value="earth">アースカラー</option>
+      </select>
+      <label>フォント:</label>
+      <select id="sf" onchange="draw()">
+        <option value='"Yu Gothic","游ゴシック",sans-serif'>游ゴシック</option>
+        <option value='"Hiragino Sans","ヒラギノ角ゴ",sans-serif'>Hiragino Sans</option>
+        <option value='"Meiryo","メイリオ",sans-serif'>Meiryo</option>
+        <option value='sans-serif'>sans-serif</option>
+      </select>
+      <label>サイズ:</label>
+      <input type="number" id="fn" value="12" min="10" max="24" oninput="syncF('n')">
+      <input type="range"  id="fr" value="12" min="10" max="24" oninput="syncF('r')">
+      <span id="fl" style="min-width:32px;color:#7a96b0">12px</span>
+      <div class="sp"></div>
+      <label style="color:#94a3b8;font-size:11px">ノードをクリックでフロー強調</label>
+      <label style="font-size:11px;color:#5a7ba0;white-space:nowrap;cursor:pointer">
+        <input type="checkbox" id="chk-mismatch" checked onchange="draw()">
+        不一致ノードを強調
+      </label>
+    </div>
+    <div id="ca" oncontextmenu="caCtxMenu(event)">
+      <svg id="svg"></svg>
+      <div class="em" id="em">
+        <div class="em-ic">📊</div>
+        <div>データを入力するとサンキー図が表示されます</div>
+        <div class="em-sub">From・To・金額 を入力してください</div>
+      </div>
+    </div>
+    <div id="rp-resize"></div>
+    <div class="size-badge" id="size-badge"></div>
+    <div class="eb">
+      <span class="eb-lbl">エクスポート:</span>
+      <button class="btn bg" onclick="xPNG()">PNG で保存</button>
+      <button class="btn bg" onclick="xSVG()">SVG で保存</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="tip"></div>
+
+<!-- ── BACKGROUND CONTEXT MENU ── -->
+<div class="ctx-menu" id="bg-ctx">
+  <div class="ctx-item" onclick="bgCtxColor()">🎨 背景色を変更</div>
+</div>
+
+<!-- ── COLUMN CONTEXT MENU ── -->
+<div class="ctx-menu" id="col-ctx">
+  <div class="ctx-item ctx-danger" onclick="colCtxDelete()">🗑 この列を削除</div>
+</div>
+
+<!-- ── NODE CONTEXT MENU ── -->
+<div class="ctx-menu" id="node-ctx">
+  <div class="ctx-item" onclick="nodeCtxAction('add-in')">＋ 流入元を追加</div>
+  <div class="ctx-item" onclick="nodeCtxAction('add-out')">＋ 流出先を追加</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="nodeCtxAction('rename')">✏ ノード名を変更</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="nodeCtxAction('color')">🎨 ノードカラーを変更</div>
+</div>
+
+<!-- ── NODE DIALOG OVERLAY ── -->
+<div id="node-dlg-overlay" onclick="nodeDlgBg(event)"
+  style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;display:none;align-items:center;justify-content:center">
+  <div id="node-dlg" onclick="event.stopPropagation()"
+    style="background:#fff;border-radius:12px;padding:24px 28px;min-width:320px;max-width:420px;width:90%;box-shadow:0 16px 48px rgba(0,0,0,.2)">
+    <h3 id="node-dlg-title" style="margin:0 0 16px;font-size:15px;color:#1e293b;font-weight:700"></h3>
+    <div id="node-dlg-body"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
+      <button class="btn bg" onclick="closeNodeDlg()">キャンセル</button>
+      <button class="btn" id="node-dlg-ok" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="nodeCtxConfirm()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── COLOR PICKER DIALOG ── -->
+<div id="cpick-ov" onclick="cpickBg(event)"
+  style="position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9200;display:none;align-items:center;justify-content:center">
+  <div id="cpick-box" onclick="event.stopPropagation()"
+    style="background:#fff;border-radius:12px;padding:20px 24px;width:292px;max-width:94vw;box-shadow:0 16px 48px rgba(0,0,0,.25)">
+    <h3 id="cpick-title" style="margin:0 0 12px;font-size:14px;color:#1e293b;font-weight:700"></h3>
+    <div id="cpick-prev" style="height:28px;border-radius:6px;border:2px solid #c0d0e0;margin-bottom:10px;transition:background .1s"></div>
+    <div id="cpick-pal" style="display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:10px"></div>
+    <label style="font-size:12px;font-weight:600;color:#4a6080;display:block;margin-bottom:3px">HEXカラー</label>
+    <input id="cpick-hex" type="text" maxlength="7" placeholder="#rrggbb" oninput="cpickHex()"
+      style="width:100%;border:1px solid #c0d0e0;border-radius:5px;padding:6px 10px;font:13px/1.5 monospace;color:#1e293b;outline:none;box-sizing:border-box">
+    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px">
+      <button class="btn bg" onclick="cpickReset()">デフォルトに戻す</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn bg" onclick="cpickCancel()">キャンセル</button>
+        <button class="btn" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="cpickOk()">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── IMPORT MODAL ── -->
+<div class="overlay" id="modal-overlay" onclick="closeImport(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-hd">
+      <h2>データのインポート</h2>
+      <button class="modal-close" onclick="closeImport()">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Tab switcher -->
+      <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid #c0d0e0;border-radius:6px;overflow:hidden">
+        <button id="tab-csv" onclick="switchTab('csv')"
+          style="flex:1;padding:8px;font:600 12px inherit;background:#2563eb;color:#fff;border:none;cursor:pointer">
+          CSV / テキスト貼り付け
+        </button>
+        <button id="tab-json" onclick="switchTab('json')"
+          style="flex:1;padding:8px;font:600 12px inherit;background:#f0f4f8;color:#4a6080;border:none;cursor:pointer">
+          JSON ファイル
+        </button>
+        <button id="tab-file" onclick="switchTab('file')"
+          style="flex:1;padding:8px;font:600 12px inherit;background:#f0f4f8;color:#4a6080;border:none;cursor:pointer">
+          CSVファイル
+        </button>
+      </div>
+
+      <!-- CSV paste panel -->
+      <div id="panel-csv">
+        <div class="form-row">
+          <label>タブ区切り（Excelからコピー）またはCSV を貼り付け</label>
+          <textarea id="csv-text" placeholder="From&#9;To&#9;金額&#9;部門&#10;売上高&#9;製造原価&#9;6000&#9;製造部&#10;..."></textarea>
+          <div class="form-hint">1行目をヘッダー行として読み込みます。From・To・金額（または Amount）列が必須です。</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;font-weight:600;color:#4a6080">
+            <input type="checkbox" id="chk-append"> 既存データに追加（チェックなしで上書き）
+          </label>
+        </div>
+      </div>
+
+      <!-- JSON file panel -->
+      <div id="panel-json" style="display:none">
+        <div class="upload-area" id="drop-json" onclick="document.getElementById('fi-json').click()"
+          ondragover="doDragOver(event,'drop-json')" ondragleave="doDragLeave('drop-json')" ondrop="doDropJSON(event)">
+          <input type="file" id="fi-json" accept=".json" onchange="loadJSONFile(this)">
+          <div style="font-size:28px;margin-bottom:6px">📄</div>
+          <div>クリックまたはドラッグ＆ドロップ</div>
+          <div class="form-hint" style="margin-top:4px">FlowLens の JSON エクスポートファイル（.json）</div>
+        </div>
+      </div>
+
+      <!-- CSV file panel -->
+      <div id="panel-file" style="display:none">
+        <div class="upload-area" id="drop-csv" onclick="document.getElementById('fi-csv').click()"
+          ondragover="doDragOver(event,'drop-csv')" ondragleave="doDragLeave('drop-csv')" ondrop="doDropCSV(event)">
+          <input type="file" id="fi-csv" accept=".csv,.tsv,.txt" onchange="loadCSVFile(this)">
+          <div style="font-size:28px;margin-bottom:6px">📊</div>
+          <div>クリックまたはドラッグ＆ドロップ</div>
+          <div class="form-hint" style="margin-top:4px">CSV / TSV / テキストファイル（.csv .tsv .txt）</div>
+        </div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;font-weight:600;color:#4a6080">
+            <input type="checkbox" id="chk-append2"> 既存データに追加
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn bg" onclick="closeImport()">キャンセル</button>
+      <button class="btn" id="btn-import-ok"
+        style="background:#2563eb;color:#fff;border-color:#2563eb"
+        onclick="doImport()">インポート</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12/dist/d3-sankey.min.js"></script>
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+const MAX = Infinity; // Pro: unlimited rows
+let rows = [];
+let cols = ['部門','費目'];
+let axis = null;
+let maxed = null;
+let lw = 50;
+let focusedNode = null;   // for click-highlight
+let currentTab = 'csv';
+let ctxNode = null;
+let ctxAction = null;
+let ctxColIdx = -1;
+let labelOffsets = {}; // {nodeName: {dx, dy}} — persists until page reload
+let customNodeColors = {}; // {nodeName: '#rrggbb'} — persists until page reload
+let cpickTarget = null;
+let colorMode = 'full'; // 'full'|'mono'|'dark'|'blue'|'earth'
+let customBgColor = null;
+let deltaOffsets = {}; // {nodeName: {dx, dy}} relative to default position (center + fsize*1.5)
+let lastDeltaFsize = null;
+
+/* ══════════════════════════════════════════════
+   SAMPLE DATA
+══════════════════════════════════════════════ */
+const SAMPLE = [
+  {from:'売上高',  to:'製造原価', amount:6000, 部門:'製造部',   費目:'材料費'},
+  {from:'売上高',  to:'販管費',   amount:2000, 部門:'営業部',   費目:'人件費'},
+  {from:'売上高',  to:'営業利益', amount:2000, 部門:'経営企画', 費目:'その他'},
+  {from:'製造原価',to:'材料費',   amount:3000, 部門:'製造部',   費目:'材料費'},
+  {from:'製造原価',to:'労務費',   amount:2000, 部門:'製造部',   費目:'人件費'},
+  {from:'製造原価',to:'製造経費', amount:1000, 部門:'製造部',   費目:'その他'},
+];
+
+/* ══════════════════════════════════════════════
+   COLOR MODES
+══════════════════════════════════════════════ */
+const COLOR_MODES={
+  full:{
+    pal:['#2563eb','#e05c2d','#059669','#d97706','#7c3aed',
+         '#db2777','#0891b2','#65a30d','#dc2626','#0284c7',
+         '#9333ea','#ea580c','#16a34a','#ca8a04','#be123c',
+         '#0f766e','#c2410c','#4338ca','#b45309','#6d28d9'],
+    bg:'#ffffff', text:'#1e293b', linkOpacity:.45,
+  },
+  mono:{
+    pal:['#444444','#666666','#888888','#aaaaaa','#cccccc',
+         '#333333','#555555','#777777','#999999','#bbbbbb'],
+    bg:'#ffffff', text:'#222222', linkOpacity:.5,
+  },
+  dark:{
+    pal:['#60a5fa','#fb923c','#34d399','#fbbf24','#a78bfa',
+         '#f472b6','#22d3ee','#a3e635','#f87171','#38bdf8',
+         '#c084fc','#fb923c','#4ade80','#facc15','#fb7185',
+         '#2dd4bf','#f97316','#818cf8','#f59e0b','#c084fc'],
+    bg:'#1a1a2e', text:'#ffffff', linkOpacity:.6,
+  },
+  blue:{
+    pal:['#1e3a5f','#2d5986','#3d7ab5','#5b9bd5','#89bbec',
+         '#1a3050','#254e78','#3569a0','#4d88c4','#7aaede',
+         '#162840','#204670','#2e5f8c','#4276b2','#6aa0d2'],
+    bg:'#f5f8fc', text:'#1a2a3a', linkOpacity:.5,
+  },
+  earth:{
+    pal:['#5c4033','#795548','#8d6e63','#a1887f','#6d8b74',
+         '#8fac99','#4e342e','#6d4c41','#7e574d','#937264',
+         '#5d7a66','#7a9e84','#3e2723','#5d4037','#6d5148'],
+    bg:'#fdf6ec', text:'#2c1a0e', linkOpacity:.5,
+  },
+};
+function modeConf(){ return COLOR_MODES[colorMode]||COLOR_MODES.full; }
+
+let cmap={}, cidx=0;
+function gc(n){ if(customNodeColors[n]) return customNodeColors[n]; if(!cmap[n]) cmap[n]=modeConf().pal[(cidx++)%modeConf().pal.length]; return cmap[n]; }
+function rcol(){ cmap={}; cidx=0; }
+
+/* ══════════════════════════════════════════════
+   UTILITY
+══════════════════════════════════════════════ */
+function esc(s){ return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(n){ return Number(n).toLocaleString('ja-JP'); }
+function showSaved(){ const el=document.getElementById('save-ind'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1600); }
+
+/* ══════════════════════════════════════════════
+   LOCALSTORAGE PERSISTENCE
+══════════════════════════════════════════════ */
+const LS_KEY = 'flowlens_pro_v1';
+
+function saveLS(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({rows, cols, axis, customNodeColors, colorMode, customBgColor}));
+    showSaved();
+  }catch(e){}
+}
+
+function loadLS(){
+  try{
+    const d=JSON.parse(localStorage.getItem(LS_KEY)||'null');
+    if(d && Array.isArray(d.rows) && d.rows.length){
+      rows=d.rows; cols=d.cols||['部門','費目']; axis=d.axis||null;
+      customNodeColors=d.customNodeColors||{};
+      colorMode=d.colorMode||'full';
+      customBgColor=d.customBgColor||null;
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ══════════════════════════════════════════════
+   TABLE RENDER
+══════════════════════════════════════════════ */
+function renderTable(){
+  // ── header
+  let h=`<tr>
+    <th class="cb-th"><input type="checkbox" id="cb-all" onchange="toggleAllRowCb(this)" title="全選択"></th>
+    <th style="width:18px"></th>
+    <th style="width:26px">#</th>
+    <th>From（流出元）<div class="col-rsz" onmousedown="colRszStart(event,this)"></div></th>
+    <th>To（流入先）<div class="col-rsz" onmousedown="colRszStart(event,this)"></div></th>
+    <th style="width:88px">金額<div class="col-rsz" onmousedown="colRszStart(event,this)"></div></th>`;
+  cols.forEach((c,i)=>{
+    const on = axis===c ? ' axis-on' : '';
+    h+=`<th class="cc${on}" onclick="editCol(${i})" title="クリック: 列名変更">
+          <div class="col-cb-wrap"><input type="checkbox" class="col-cb" data-ci="${i}" onchange="updateDelColBtn()" onclick="event.stopPropagation()"></div>
+          <div class="thi">${esc(c)}<span class="thx">✎</span></div>
+          <div class="col-rsz" onmousedown="colRszStart(event,this)"></div></th>`;
+  });
+  h+=`</tr>`;
+  document.getElementById('th').innerHTML=h;
+
+  // ── body
+  let b='';
+  rows.forEach((r,i)=>{
+    b+=`<tr data-i="${i}" draggable="true"
+      onmouseenter="rowHover(${i})" onmouseleave="rowUnhover()"
+      ondragstart="rowDragStart(event,${i})" ondragend="rowDragEnd(event)"
+      ondragover="rowDragOver(event)" ondragleave="rowDragLeave(event)"
+      ondrop="rowDrop(event,${i})">
+      <td class="cbx"><input type="checkbox" class="row-cb" onchange="updateDelRowBtn()"></td>
+      <td class="dh">⠿</td>
+      <td class="rn">${i+1}</td>
+      <td class="ac-wrap"><input class="from-inp" type="text" value="${esc(r.from)}" placeholder="例: 売上高"
+          autocomplete="off"
+          oninput="sf2(${i},'from',this.value);acFilter(this,'ac-fr-${i}')"
+          onfocus="acOpen(this,'ac-fr-${i}')"
+          onblur="acDelay('ac-fr-${i}')"
+          onkeydown="acKey(event,${i},0,'ac-fr-${i}')">
+        <div class="ac-drop" id="ac-fr-${i}"></div></td>
+      <td class="ac-wrap"><input class="to-inp"   type="text" value="${esc(r.to)}"   placeholder="例: 製造原価"
+          autocomplete="off"
+          oninput="sf2(${i},'to',this.value);acFilter(this,'ac-to-${i}')"
+          onfocus="acOpen(this,'ac-to-${i}')"
+          onblur="acDelay('ac-to-${i}')"
+          onkeydown="acKey(event,${i},1,'ac-to-${i}')">
+        <div class="ac-drop" id="ac-to-${i}"></div></td>
+      <td><input type="number" value="${r.amount||''}"  placeholder="0"
+          oninput="sf2(${i},'amount',this.value)" onkeydown="navKey(event,${i},2)"></td>`;
+    cols.forEach((c,ci)=>{
+      b+=`<td><input type="text" value="${esc(r[c]||'')}"
+          oninput="sf2(${i},${JSON.stringify(c)},this.value)"
+          onkeydown="navKey(event,${i},${3+ci})"></td>`;
+    });
+    b+=`</tr>`;
+  });
+  document.getElementById('tb').innerHTML=b;
+  applyNodeColors();
+
+  // ── footer (sum)
+  const total = rows.reduce((s,r)=>s+(+r.amount||0),0);
+  let f=`<tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td><span class="sum-lbl">合計</span></td>
+    <td></td>
+    <td class="sum">${fmt(total)}</td>`;
+  cols.forEach(()=>f+=`<td></td>`);
+  f+=`</tr>`;
+  document.getElementById('tf').innerHTML=f;
+
+  // ── row count badge (Pro: no limit)
+  const lbl=document.getElementById('rlbl');
+  const ba=document.getElementById('badd');
+  lbl.textContent=`${rows.length}行`;lbl.style.display='';
+  ba.classList.remove('dis');ba.disabled=false;ba.title='';
+  updateDelRowBtn();
+  updateDelColBtn();
+}
+
+/* ── keyboard navigation */
+function navKey(e, ri, ci){
+  const totalCols = 3 + cols.length; // from, to, amount, ...customs
+  if(e.key==='Tab'){
+    e.preventDefault();
+    const dir = e.shiftKey ? -1 : 1;
+    let ni = ci + dir, nr = ri;
+    if(ni >= totalCols){ ni=0; nr=ri+1; if(nr>=rows.length) nr=0; }
+    if(ni < 0){ ni=totalCols-1; nr=ri-1; if(nr<0) nr=rows.length-1; }
+    const inputs = document.querySelectorAll(`tr[data-i="${nr}"] input`);
+    if(inputs[ni]) inputs[ni].focus();
+  }
+  if(e.key==='Enter' && ci===totalCols-1 && ri===rows.length-1){
+    addRow();
+    setTimeout(()=>{
+      const inputs=document.querySelectorAll(`tr[data-i="${rows.length-1}"] input`);
+      if(inputs[0]) inputs[0].focus();
+    },30);
+  }
+}
+
+function sf2(i,f,v){
+  rows[i][f]=(f==='amount')?(parseFloat(v)||0):v;
+  draw(); saveLS();
+}
+function addRow(){
+  const r={from:'',to:'',amount:0};
+  cols.forEach(c=>r[c]='');
+  rows.push(r);
+  renderTable();draw();saveLS();
+}
+function delRow(i){
+  rows.splice(i,1);
+  renderTable();draw();saveLS();
+}
+function updateDelRowBtn(){
+  const any=document.querySelectorAll('.row-cb:checked').length>0;
+  const btn=document.getElementById('bdel-rows');
+  if(btn) btn.disabled=!any;
+}
+function toggleAllRowCb(el){
+  document.querySelectorAll('.row-cb').forEach(c=>c.checked=el.checked);
+  updateDelRowBtn();
+}
+function delSelectedRows(){
+  const checked=[...document.querySelectorAll('#tb tr[data-i] .row-cb:checked')]
+    .map(c=>+c.closest('tr').getAttribute('data-i'));
+  if(!checked.length) return;
+  if(!confirm(`選択した${checked.length}行を削除しますか？`)) return;
+  rows=rows.filter((_,i)=>!checked.includes(i));
+  renderTable();draw();saveLS();
+}
+function updateDelColBtn(){
+  const any=document.querySelectorAll('.col-cb:checked').length>0;
+  const btn=document.getElementById('bdel-cols');
+  if(btn) btn.disabled=!any;
+}
+function delSelectedCols(){
+  const idxs=[...document.querySelectorAll('.col-cb:checked')]
+    .map(c=>+c.getAttribute('data-ci'))
+    .sort((a,b)=>b-a);
+  if(!idxs.length) return;
+  const names=idxs.map(i=>cols[i]);
+  if(!confirm(`選択した${idxs.length}列（${names.join('、')}）を削除しますか？\nこれらの列のデータもすべて削除されます。`)) return;
+  idxs.forEach(i=>{
+    const name=cols[i];
+    cols.splice(i,1);
+    rows.forEach(r=>delete r[name]);
+    if(axis===name) axis=null;
+  });
+  saveLS(); renderTable(); renderAxis(); draw();
+}
+function clearAll(){
+  if(!confirm('すべての入力データをクリアしますか？\nこの操作は元に戻せません。'))return;
+  rows=[];renderTable();draw();saveLS();
+}
+function addCol(){
+  const n=(prompt('新しい列名を入力してください：','列'+(cols.length+1))||'').trim();
+  if(!n)return;
+  if(cols.includes(n)){alert('同名の列がすでに存在します。');return;}
+  cols.push(n);
+  rows.forEach(r=>r[n]='');
+  renderTable();renderAxis();saveLS();
+}
+function editCol(i){
+  const old=cols[i];
+  const neo=(prompt('列名を変更：',old)||'').trim();
+  if(!neo||neo===old)return;
+  if(cols.includes(neo)){alert('同名の列がすでに存在します。');return;}
+  cols[i]=neo;
+  rows.forEach(r=>{r[neo]=r[old]??'';delete r[old];});
+  if(axis===old)axis=neo;
+  renderTable();renderAxis();draw();saveLS();
+}
+
+/* ══════════════════════════════════════════════
+   AXIS BUTTONS
+══════════════════════════════════════════════ */
+function renderAxis(){
+  const g=document.getElementById('ag');
+  let h=`<span class="albl">切り口:</span>`;
+  h+=`<button class="btn baxis${axis===null?' on':''}" onclick="setAxis(null)">From/To</button>`;
+  cols.forEach(c=>{
+    h+=`<button class="btn baxis${axis===c?' on':''}" onclick='setAxis(${JSON.stringify(c)})'>${esc(c)}</button>`;
+  });
+  g.innerHTML=h;
+}
+function setAxis(a){axis=a;focusedNode=null;renderAxis();renderTable();draw();saveLS();}
+
+/* ══════════════════════════════════════════════
+   FONT SIZE
+══════════════════════════════════════════════ */
+function syncF(src){
+  const n=document.getElementById('fn'),r=document.getElementById('fr'),l=document.getElementById('fl');
+  if(src==='r')n.value=r.value;else r.value=n.value;
+  l.textContent=n.value+'px';
+  draw();
+}
+
+/* ══════════════════════════════════════════════
+   BUILD GRAPH LINKS
+══════════════════════════════════════════════ */
+function buildLinks(){
+  const m=new Map();
+  const agg=(s,t,v)=>{
+    if(!s||!t||s===t||!(v>0))return;
+    const k=s+'\x00'+t;
+    m.set(k,(m.get(k)||0)+v);
+  };
+  if(axis===null){
+    rows.forEach(r=>{ if(r.from&&r.to&&r.amount>0) agg(r.from,r.to,+r.amount); });
+  } else {
+    // From → AxisValue  (replace To with axis attribute)
+    rows.forEach(r=>{
+      if(r.from&&r.amount>0){
+        const av=r[axis]||'(未設定)';
+        agg(r.from, av, +r.amount);
+      }
+    });
+  }
+  return [...m.entries()].map(([k,v])=>{const[s,t]=k.split('\x00');return{source:s,target:t,value:v};});
+}
+
+/* ══════════════════════════════════════════════
+   CYCLE DETECTION
+══════════════════════════════════════════════ */
+function hasCycle(n,links){
+  const adj=Array.from({length:n},()=>[]);
+  links.forEach(l=>adj[l.source].push(l.target));
+  const col=new Uint8Array(n);
+  function dfs(u){
+    col[u]=1;
+    for(const v of adj[u]){if(col[v]===1)return true;if(!col[v]&&dfs(v))return true;}
+    col[u]=2;return false;
+  }
+  for(let i=0;i<n;i++)if(!col[i]&&dfs(i))return true;
+  return false;
+}
+
+/* ══════════════════════════════════════════════
+   SANKEY LINK PATH (filled ribbon, no reversal)
+══════════════════════════════════════════════ */
+function sankeyLinkPath(link){
+  const x0=link.source.x1, x1=link.target.x0;
+  const hw=link.width/2;
+  const y0a=link.y0-hw, y0b=link.y0+hw;
+  const y1a=link.y1-hw, y1b=link.y1+hw;
+  const dx=x1-x0;
+  const maxDy=Math.max(Math.abs(y1a-y0a),Math.abs(y1b-y0b));
+  const cp=Math.max(dx*0.5,Math.min(dx*0.5+maxDy*0.3,dx*2));
+  const c1x=x0+cp, c2x=x1-cp;
+  return `M${x0},${y0a}C${c1x},${y0a} ${c2x},${y1a} ${x1},${y1a}`+
+         `L${x1},${y1b}C${c2x},${y1b} ${c1x},${y0b} ${x0},${y0b}Z`;
+}
+
+/* ══════════════════════════════════════════════
+   DRAW SANKEY
+══════════════════════════════════════════════ */
+function draw(){
+  const svgEl=document.getElementById('svg');
+  const em=document.getElementById('em');
+  svgEl.innerHTML='';
+
+  const links=buildLinks();
+  if(!links.length){em.style.display='flex';return;}
+  em.style.display='none';
+
+  // Build node index
+  const ns=new Set();
+  links.forEach(l=>{ns.add(l.source);ns.add(l.target);});
+  const names=[...ns];
+  const idx=Object.fromEntries(names.map((n,i)=>[n,i]));
+  const gl=links.map(l=>({source:idx[l.source],target:idx[l.target],value:l.value}));
+
+  // Dimensions
+  const ca=document.getElementById('ca');
+  const W=ca.clientWidth||700;
+  const H=ca.clientHeight||450;
+  const M={t:22,r:20,b:20,l:20};
+  const EXPAND_MARGIN=100, EXPAND_AMOUNT=200;
+
+  const font=document.getElementById('sf').value;
+  const fsize=parseInt(document.getElementById('fn').value)||12;
+  if(lastDeltaFsize!==null && lastDeltaFsize!==fsize) deltaOffsets={};
+  lastDeltaFsize=fsize;
+
+  // Cycle check
+  if(hasCycle(names.length,gl)){
+    const s=d3.select('#svg').attr('width',W).attr('height',H).attr('viewBox',`0 0 ${W} ${H}`);
+    s.append('text')
+      .attr('x',W/2).attr('y',H/2).attr('text-anchor','middle')
+      .attr('fill','#dc2626').attr('font-size',13).attr('font-family',font)
+      .text('From→Toに循環参照があります。データを確認してください。');
+    return;
+  }
+
+  rcol();
+  // Pre-assign colors in name order for stability
+  names.forEach(n=>gc(n));
+
+  // SVG
+  const s=d3.select('#svg')
+    .attr('width',W).attr('height',H)
+    .attr('viewBox',`0 0 ${W} ${H}`)
+    .attr('shape-rendering','crispEdges');
+
+  const defs=s.append('defs');
+  const mc=modeConf();
+  const bgColor=customBgColor||mc.bg;
+  s.append('rect').attr('class','bg-rect').attr('width',W).attr('height',H).attr('fill',bgColor);
+  document.getElementById('ca').style.background=bgColor;
+
+  // Sankey — increased padding + more iterations to prevent ribbon overlap
+  const sk=d3.sankey()
+    .nodeId(d=>d.i)
+    .nodeWidth(16)
+    .nodePadding(Math.max(14, Math.min(40, H/(names.length+1)*0.4)))
+    .iterations(32)
+    .extent([[M.l,M.t],[W-M.r,H-M.b]]);
+
+  let g;
+  try{
+    g=sk({
+      nodes:names.map((name,i)=>({name,i})),
+      links:gl.map(d=>({...d}))
+    });
+  }catch(e){console.error(e);return;}
+
+  // Detect intermediate nodes where inflow ≠ outflow (directional)
+  const showMismatch=document.getElementById('chk-mismatch')?.checked!==false;
+  const MISMATCH='#dc2626';
+  const mismatchLow=new Set();
+  const mismatchHigh=new Set();
+  if(showMismatch){
+    g.nodes.forEach(n=>{
+      if(n.sourceLinks.length>0 && n.targetLinks.length>0){
+        const inflow=n.targetLinks.reduce((s,l)=>s+l.value,0);
+        const outflow=n.sourceLinks.reduce((s,l)=>s+l.value,0);
+        if(inflow < outflow-0.01) mismatchLow.add(n.name);
+        else if(outflow < inflow-0.01) mismatchHigh.add(n.name);
+      }
+    });
+  }
+  const mismatches=new Set([...mismatchLow,...mismatchHigh]);
+
+  if(mismatches.size>0){
+    s.append('text')
+      .attr('x',W/2).attr('y',15)
+      .attr('text-anchor','middle')
+      .attr('fill',MISMATCH).attr('font-size',12).attr('font-family',font)
+      .attr('pointer-events','none')
+      .text('⚠ 流入出が一致しないノードがあります');
+  }
+
+  g.links.forEach((l,i)=>{
+    const gr=defs.append('linearGradient')
+      .attr('id',`lg${i}`)
+      .attr('gradientUnits','userSpaceOnUse')
+      .attr('x1',l.source.x1).attr('x2',l.target.x0);
+    const tgtIsLow  = showMismatch && mismatchLow.has(l.target.name);
+    const srcIsHigh = showMismatch && mismatchHigh.has(l.source.name);
+    if(tgtIsLow){
+      gr.append('stop').attr('offset','0%') .attr('stop-color',gc(l.source.name));
+      gr.append('stop').attr('offset','76%').attr('stop-color',gc(l.source.name));
+      gr.append('stop').attr('offset','100%').attr('stop-color',MISMATCH);
+    } else if(srcIsHigh){
+      gr.append('stop').attr('offset','0%') .attr('stop-color',MISMATCH);
+      gr.append('stop').attr('offset','24%').attr('stop-color',gc(l.target.name));
+      gr.append('stop').attr('offset','100%').attr('stop-color',gc(l.target.name));
+    } else {
+      gr.append('stop').attr('offset','0%') .attr('stop-color',gc(l.source.name));
+      gr.append('stop').attr('offset','100%').attr('stop-color',gc(l.target.name));
+    }
+  });
+
+  // ── Links
+  const linkSel=s.append('g').attr('fill','none').attr('stroke','none')
+    .selectAll('path')
+    .data(g.links)
+    .join('path')
+      .attr('class','sk-link')
+      .attr('data-src',d=>d.source.name)
+      .attr('data-tgt',d=>d.target.name)
+      .attr('shape-rendering','geometricPrecision')
+      .attr('d',sankeyLinkPath)
+      .attr('fill',(d,i)=>`url(#lg${i})`)
+      .attr('stroke','none')
+      .attr('opacity',mc.linkOpacity)
+      .on('mouseover',function(e,d){
+        highlightByLink(d.source.name, d.target.name);
+        const tgtLinks=d.target.targetLinks||[];
+        const tgtTotal=tgtLinks.reduce((s,l)=>s+l.value,0);
+        let html=`${d.source.name} <span style="color:#7dd3fc">→</span> ${d.target.name}　<strong>${fmt(d.value)}</strong>`;
+        tgtLinks.forEach(tl=>{
+          const pct=tgtTotal>0?(tl.value/tgtTotal*100).toFixed(1):'0.0';
+          const mark=tl===d?'▶ ':'　';
+          html+=`<br>${mark}${tl.source.name} → ${d.target.name}: <strong>${pct}%</strong>`;
+        });
+        tip(e,html);
+      })
+      .on('mousemove',movTip)
+      .on('mouseout',function(){
+        clearLinkHighlight();
+        hidTip();
+      });
+
+  // ── Nodes
+  const nodeG=s.append('g').selectAll('g').data(g.nodes).join('g').attr('class','sk-node');
+
+  nodeG.append('rect')
+    .attr('class','sk-rect')
+    .attr('data-name',d=>d.name)
+    .attr('x',d=>d.x0).attr('y',d=>d.y0)
+    .attr('width',d=>d.x1-d.x0)
+    .attr('height',d=>Math.max(2,d.y1-d.y0))
+    .attr('fill',d=>gc(d.name))
+    .attr('rx',3).attr('opacity',.92)
+    .attr('stroke',d=>(showMismatch&&mismatches.has(d.name))?MISMATCH:'none')
+    .attr('stroke-width',d=>(showMismatch&&mismatches.has(d.name))?2.5:0)
+    .on('click',function(e,d){
+      if(focusedNode===d.name){ focusedNode=null; clearFocus(); }
+      else{ focusedNode=d.name; applyFocus(d.name); }
+    })
+    .on('mouseover',function(e,d){
+      if(!focusedNode){
+        let html=`<strong>${d.name}</strong><br>合計: ${fmt(d.value)}`;
+        if(showMismatch && mismatches.has(d.name)){
+          const inflow=d.targetLinks.reduce((s,l)=>s+l.value,0);
+          const outflow=d.sourceLinks.reduce((s,l)=>s+l.value,0);
+          const dir=inflow<outflow?'流入不足':'流出不足';
+          html+=`<br><span style="color:#fca5a5">⚠ ${dir}: 流入 ${fmt(inflow)} / 流出 ${fmt(outflow)}</span>`;
+        }
+        tip(e,html);
+      }
+    })
+    .on('mousemove',movTip)
+    .on('mouseout',hidTip);
+
+  // ── Labels (pointer-events:all so label drag works independently of node drag)
+  nodeG.append('text')
+    .attr('class','sk-label')
+    .attr('data-name',d=>d.name)
+    .attr('x',d=>(d.x0<W/2 ? d.x1+8 : d.x0-8)+(labelOffsets[d.name]?.dx||0))
+    .attr('y',d=>(d.y0+d.y1)/2+(labelOffsets[d.name]?.dy||0))
+    .attr('dy','0.35em')
+    .attr('text-anchor',d=>d.x0<W/2?'start':'end')
+    .attr('font-size',fsize)
+    .attr('font-family',font)
+    .attr('fill',mc.text)
+    .attr('pointer-events','all')
+    .text(d=>`${d.name}  ${fmt(d.value)}`);
+
+  // ── Node drag: SVG expands dynamically at top/bottom; #ca (overflow-y:auto) handles scroll
+  nodeG.select('.sk-rect').call(d3.drag()
+    .on('start',function(){ d3.select(this.parentNode).raise(); hidTip(); })
+    .on('drag',function(event,d){
+      const nodeH=d.y1-d.y0;
+      const svgEl=document.getElementById('svg');
+      const caEl=document.getElementById('ca');
+      let svgCurH=+svgEl.getAttribute('height')||H;
+      let newY=d.y0+event.dy;
+
+      // Upper boundary: shift all nodes/links down and expand SVG upward
+      if(newY<EXPAND_MARGIN && event.dy<0){
+        svgCurH+=EXPAND_AMOUNT;
+        g.nodes.forEach(n=>{n.y0+=EXPAND_AMOUNT;n.y1+=EXPAND_AMOUNT;});
+        g.links.forEach(l=>{l.y0+=EXPAND_AMOUNT;l.y1+=EXPAND_AMOUNT;});
+        s.selectAll('.sk-rect').attr('y',n=>n.y0);
+        s.selectAll('.sk-label').attr('y',n=>(n.y0+n.y1)/2+(labelOffsets[n.name]?.dy||0));
+        svgEl.setAttribute('height',svgCurH);
+        svgEl.setAttribute('viewBox',`0 0 ${W} ${svgCurH}`);
+        s.select('.bg-rect').attr('height',svgCurH);
+        s.select('.sk-copyright').attr('y',svgCurH-8);
+        caEl.scrollTop+=EXPAND_AMOUNT;
+        newY+=EXPAND_AMOUNT;
+      }
+      newY=Math.max(0,newY);
+
+      // Lower boundary: expand SVG downward
+      if(newY+nodeH>svgCurH-EXPAND_MARGIN){
+        svgCurH+=EXPAND_AMOUNT;
+        svgEl.setAttribute('height',svgCurH);
+        svgEl.setAttribute('viewBox',`0 0 ${W} ${svgCurH}`);
+        s.select('.bg-rect').attr('height',svgCurH);
+        s.select('.sk-copyright').attr('y',svgCurH-8);
+      }
+
+      const dy=newY-d.y0;
+      if(dy===0) return;
+      d.y0=newY; d.y1=newY+nodeH;
+      d.sourceLinks.forEach(l=>{l.y0+=dy;});
+      d.targetLinks.forEach(l=>{l.y1+=dy;});
+      d3.select(this).attr('y',d.y0);
+      d3.select(this.parentNode).select('.sk-label').attr('y',(d.y0+d.y1)/2+(labelOffsets[d.name]?.dy||0));
+      s.selectAll('.sk-delta').filter(function(){ return d3.select(this).attr('data-dname')===d.name; })
+        .attr('y',(d.y0+d.y1)/2+fsize*1.5+(deltaOffsets[d.name]?.dy||0));
+      s.selectAll('.sk-link').attr('d',sankeyLinkPath);
+
+      // Auto-scroll #ca while dragging near viewport edges
+      const src=event.sourceEvent;
+      if(src){
+        const r=caEl.getBoundingClientRect();
+        if(src.clientY-r.top<60) caEl.scrollTop=Math.max(0,caEl.scrollTop-12);
+        if(r.bottom-src.clientY<60) caEl.scrollTop+=12;
+      }
+    })
+  );
+
+  // ── Label drag: adjust position relative to default, stored in labelOffsets
+  nodeG.select('.sk-label').call(d3.drag()
+    .on('start',function(event,d){
+      if(!labelOffsets[d.name]) labelOffsets[d.name]={dx:0,dy:0};
+      d3.select(this.parentNode).raise();
+      hidTip();
+      event.sourceEvent.stopPropagation();
+    })
+    .on('drag',function(event,d){
+      if(!labelOffsets[d.name]) labelOffsets[d.name]={dx:0,dy:0};
+      labelOffsets[d.name].dx+=event.dx;
+      labelOffsets[d.name].dy+=event.dy;
+      d3.select(this)
+        .attr('x',+d3.select(this).attr('x')+event.dx)
+        .attr('y',+d3.select(this).attr('y')+event.dy);
+    })
+  );
+
+  nodeG.on('contextmenu', function(e, d){
+    e.preventDefault();
+    nodeCtxMenu(e, d);
+  });
+
+  // ── Mismatch Δ labels
+  if(showMismatch && mismatches.size>0){
+    const deltaG=s.append('g').attr('class','sk-delta-group');
+    g.nodes.forEach(n=>{
+      const inflow=n.targetLinks.reduce((s,l)=>s+l.value,0);
+      const outflow=n.sourceLinks.reduce((s,l)=>s+l.value,0);
+      let diff=0, side='left';
+      if(mismatchLow.has(n.name)){  diff=outflow-inflow; side='left'; }
+      else if(mismatchHigh.has(n.name)){ diff=inflow-outflow; side='right'; }
+      else return;
+
+      const off=deltaOffsets[n.name]||{dx:0,dy:0};
+      const baseX=side==='left' ? n.x0-8 : n.x1+8;
+      const baseY=(n.y0+n.y1)/2 + fsize*1.5;
+      const anchor=side==='left'?'end':'start';
+
+      deltaG.append('text')
+        .attr('class','sk-delta')
+        .attr('data-dname',n.name)
+        .attr('x',baseX+off.dx)
+        .attr('y',baseY+off.dy)
+        .attr('dy','0.35em')
+        .attr('text-anchor',anchor)
+        .attr('font-size',fsize)
+        .attr('font-family',font)
+        .attr('font-weight','700')
+        .attr('fill','#dc2626')
+        .attr('pointer-events','all')
+        .attr('cursor','move')
+        .text(`Δ${fmt(diff)}`);
+    });
+
+    deltaG.selectAll('.sk-delta').call(d3.drag()
+      .on('start',function(){ d3.select(this).raise(); })
+      .on('drag',function(event){
+        const name=d3.select(this).attr('data-dname');
+        if(!deltaOffsets[name]) deltaOffsets[name]={dx:0,dy:0};
+        deltaOffsets[name].dx+=event.dx;
+        deltaOffsets[name].dy+=event.dy;
+        d3.select(this)
+          .attr('x',+d3.select(this).attr('x')+event.dx)
+          .attr('y',+d3.select(this).attr('y')+event.dy);
+      })
+    );
+  }
+
+  // ── Copyright notice (Pro version, bottom-right of SVG)
+  s.append('text')
+    .attr('class','sk-copyright')
+    .attr('x',W-8).attr('y',H-8)
+    .attr('text-anchor','end')
+    .attr('font-size','11').attr('fill','#999999').attr('opacity','0.7')
+    .attr('font-family','sans-serif')
+    .attr('pointer-events','none')
+    .text('©FlowLens');
+
+  // Restore highlight if a node was focused
+  if(focusedNode) applyFocus(focusedNode);
+  updateSizeBadge();
+  applyNodeColors();
+}
+
+/* ── Focus / highlight helpers */
+function applyFocus(name){
+  const svg=document.getElementById('svg');
+  svg.querySelectorAll('.sk-link').forEach(el=>{
+    const s=el.getAttribute('data-src'), t=el.getAttribute('data-tgt');
+    const rel=(s===name||t===name);
+    el.style.opacity=rel?'0.85':'0.06';
+  });
+  svg.querySelectorAll('.sk-rect').forEach(el=>{
+    const n=el.getAttribute('data-name');
+    el.style.opacity=(n===name)?'1':'0.22';
+  });
+  svg.querySelectorAll('.sk-label').forEach(el=>{
+    const n=el.getAttribute('data-name');
+    el.style.opacity=(n===name)?'1':'0.25';
+  });
+}
+function clearFocus(){
+  const svg=document.getElementById('svg');
+  svg.querySelectorAll('.sk-link').forEach(el=>el.style.opacity=modeConf().linkOpacity);
+  svg.querySelectorAll('.sk-rect').forEach(el=>el.style.opacity='.92');
+  svg.querySelectorAll('.sk-label').forEach(el=>el.style.opacity='1');
+}
+function setColorMode(m){ colorMode=m; saveLS(); draw(); }
+
+/* ══════════════════════════════════════════════
+   TOOLTIP
+══════════════════════════════════════════════ */
+const TIP=document.getElementById('tip');
+function tip(e,html){TIP.innerHTML=html;TIP.style.display='block';movTip(e);}
+function movTip(e){
+  const mg=12,w=TIP.offsetWidth,h=TIP.offsetHeight;
+  let l=e.clientX+mg, t=e.clientY+mg;
+  if(l+w>window.innerWidth-mg)  l=e.clientX-w-mg;
+  if(t+h>window.innerHeight-mg) t=e.clientY-h-mg;
+  TIP.style.left=l+'px'; TIP.style.top=t+'px';
+}
+function hidTip(){TIP.style.display='none';}
+
+/* ══════════════════════════════════════════════
+   MAXIMIZE
+══════════════════════════════════════════════ */
+function toggleMax(side){
+  const lp=document.getElementById('lp'),rp=document.getElementById('rp'),sp=document.getElementById('sep');
+  const bl=document.getElementById('bmxl'),br=document.getElementById('bmxr');
+  if(maxed===side){
+    maxed=null;
+    lp.classList.remove('hidden');rp.classList.remove('hidden');sp.classList.remove('hidden');
+    lp.style.width=lw+'%';
+    bl.textContent='⤢';br.textContent='⤢';
+  } else {
+    maxed=side;
+    if(side==='l'){
+      rp.classList.add('hidden');sp.classList.add('hidden');
+      lp.style.width='100%';
+      bl.textContent='⤡';br.textContent='⤢';
+    } else {
+      lp.classList.add('hidden');sp.classList.add('hidden');
+      lp.style.width='0';
+      br.textContent='⤡';bl.textContent='⤢';
+    }
+  }
+  setTimeout(draw,60);
+}
+
+/* ══════════════════════════════════════════════
+   SEPARATOR DRAG
+══════════════════════════════════════════════ */
+(function(){
+  const sp=document.getElementById('sep'),mn=document.getElementById('main');
+  let drag=false;
+  sp.addEventListener('mousedown',e=>{
+    if(maxed)return;
+    drag=true;sp.classList.add('drag');
+    document.body.style.userSelect='none';document.body.style.cursor='col-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    const r=mn.getBoundingClientRect();
+    const pct=Math.max(15,Math.min(85,(e.clientX-r.left)/r.width*100));
+    lw=pct;document.getElementById('lp').style.width=pct+'%';
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!drag)return;
+    drag=false;sp.classList.remove('drag');
+    document.body.style.userSelect='';document.body.style.cursor='';
+    draw();
+  });
+})();
+
+/* ══════════════════════════════════════════════
+   IMPORT MODAL
+══════════════════════════════════════════════ */
+function openImport(){
+  document.getElementById('csv-text').value='';
+  document.getElementById('modal-overlay').classList.add('open');
+  switchTab('csv');
+}
+function closeImport(e){
+  if(e && e.target!==document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function switchTab(t){
+  currentTab=t;
+  ['csv','json','file'].forEach(x=>{
+    document.getElementById('panel-'+x).style.display=(x===t)?'':'none';
+    const btn=document.getElementById('tab-'+x);
+    btn.style.background=(x===t)?'#2563eb':'#f0f4f8';
+    btn.style.color=(x===t)?'#fff':'#4a6080';
+  });
+  // Show/hide import button for file tabs
+  document.getElementById('btn-import-ok').style.display=(t==='json'||t==='file')?'none':'';
+}
+
+/* ── CSV parse */
+function parseCSV(text, append){
+  text=text.trim();
+  if(!text) return false;
+  // Detect delimiter
+  const firstLine=text.split('\n')[0];
+  const delim=firstLine.includes('\t') ? '\t' : ',';
+
+  const lines=text.split('\n').map(l=>l.split(delim).map(c=>c.trim().replace(/^"|"$/g,'')));
+  if(lines.length<2){alert('2行以上のデータが必要です（1行目はヘッダー）。');return false;}
+
+  const header=lines[0];
+  // Find required columns (case-insensitive)
+  const ci=(names)=>{ for(const n of names){ const i=header.findIndex(h=>h.toLowerCase()===n.toLowerCase()); if(i>=0)return i;} return -1; };
+  const iF=ci(['from','From','流出元']);
+  const iT=ci(['to','To','流入先']);
+  const iA=ci(['金額','amount','Amount','value','Value']);
+  if(iF<0||iT<0||iA<0){alert('From / To / 金額 列が見つかりません。\nヘッダー行を確認してください。');return false;}
+
+  // Detect extra columns
+  const stdIdx=new Set([iF,iT,iA]);
+  const extraCols=header.filter((_,i)=>!stdIdx.has(i)&&_);
+  // Merge with existing custom cols
+  extraCols.forEach(c=>{ if(!cols.includes(c)) cols.push(c); });
+
+  const newRows=[];
+  for(let li=1;li<lines.length;li++){
+    const l=lines[li];
+    if(l.every(c=>!c)) continue;
+    const r={from:l[iF]||'',to:l[iT]||'',amount:parseFloat(l[iA])||0};
+    extraCols.forEach(c=>{
+      const ci2=header.indexOf(c);
+      r[c]=ci2>=0?(l[ci2]||''):'';
+    });
+    cols.filter(c=>!extraCols.includes(c)).forEach(c=>r[c]=r[c]||'');
+    newRows.push(r);
+  }
+  if(!newRows.length){alert('データ行が見つかりませんでした。');return false;}
+
+  rows=append?[...rows,...newRows]:newRows;
+  return true;
+}
+
+function doImport(){
+  if(currentTab==='csv'){
+    const text=document.getElementById('csv-text').value;
+    const append=document.getElementById('chk-append').checked;
+    if(!parseCSV(text, append)) return;
+    renderTable();draw();saveLS();
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+}
+
+/* ── File upload helpers */
+function doDragOver(e,id){ e.preventDefault(); document.getElementById(id).classList.add('over'); }
+function doDragLeave(id){ document.getElementById(id).classList.remove('over'); }
+
+function doDropJSON(e){
+  e.preventDefault();document.getElementById('drop-json').classList.remove('over');
+  const f=e.dataTransfer.files[0]; if(f) readJSON(f);
+}
+function doDropCSV(e){
+  e.preventDefault();document.getElementById('drop-csv').classList.remove('over');
+  const f=e.dataTransfer.files[0]; if(f) readCSVFile(f);
+}
+function loadJSONFile(inp){ if(inp.files[0]) readJSON(inp.files[0]); }
+function loadCSVFile(inp){ if(inp.files[0]) readCSVFile(inp.files[0]); }
+
+function readJSON(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(!d.rows) throw new Error();
+      rows=d.rows; cols=d.cols||['部門','費目']; axis=d.axis||null;
+      customNodeColors=d.customNodeColors||{};
+      colorMode=d.colorMode||'full';
+      customBgColor=d.customBgColor||null;
+      renderTable();renderAxis();draw();saveLS();
+      document.getElementById('modal-overlay').classList.remove('open');
+    }catch(ex){ alert('JSONファイルの形式が正しくありません。'); }
+  };
+  fr.readAsText(file,'utf-8');
+}
+function readCSVFile(file){
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const append=document.getElementById('chk-append2').checked;
+    if(!parseCSV(e.target.result, append)) return;
+    renderTable();renderAxis();draw();saveLS();
+    document.getElementById('modal-overlay').classList.remove('open');
+  };
+  fr.readAsText(file,'utf-8');
+}
+
+/* ══════════════════════════════════════════════
+   EXPORT
+══════════════════════════════════════════════ */
+function exportJSON(){
+  const d=JSON.stringify({rows,cols,axis,customNodeColors,colorMode,customBgColor},null,2);
+  const blob=new Blob([d],{type:'application/json'});
+  dl(URL.createObjectURL(blob),'flowlens_data.json',true);
+}
+
+function xSVG(){
+  const el=document.getElementById('svg');
+  const src=new XMLSerializer().serializeToString(el);
+  const blob=new Blob([src],{type:'image/svg+xml;charset=utf-8'});
+  dl(URL.createObjectURL(blob),'flowlens.svg',true);
+}
+
+function xPNG(){
+  const el=document.getElementById('svg');
+  const W=+el.getAttribute('width')||800;
+  const H=+el.getAttribute('height')||500;
+  const src=new XMLSerializer().serializeToString(el);
+  const blob=new Blob([src],{type:'image/svg+xml;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const c=document.createElement('canvas');
+    c.width=W;c.height=H;
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,W,H);
+    ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    dl(c.toDataURL('image/png'),'flowlens.png',false);
+  };
+  img.onerror=()=>{alert('PNG変換に失敗しました。SVGでの保存をお試しください。');URL.revokeObjectURL(url);};
+  img.src=url;
+}
+
+function dl(url,name,rev){
+  const a=document.createElement('a');
+  a.href=url;a.download=name;a.click();
+  if(rev)setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+/* ══════════════════════════════════════════════
+   AUTOCOMPLETE (From / To cells)
+══════════════════════════════════════════════ */
+function acNodeNames(){
+  const s=new Set();
+  rows.forEach(r=>{ if(r.from) s.add(r.from); if(r.to) s.add(r.to); });
+  return [...s].sort((a,b)=>a.localeCompare(b,'ja'));
+}
+
+function acBuild(drop, names){
+  drop.innerHTML=names.map(n=>
+    `<div class="ac-item" data-val="${esc(n)}" onmousedown="acSelect(event,this)">${esc(n)}</div>`
+  ).join('');
+  drop.style.display=names.length?'block':'none';
+}
+
+function acOpen(inp, id){
+  const drop=document.getElementById(id); if(!drop) return;
+  acBuild(drop, acNodeNames());
+}
+
+function acFilter(inp, id){
+  const drop=document.getElementById(id); if(!drop) return;
+  const v=inp.value.toLowerCase();
+  const names=acNodeNames();
+  acBuild(drop, v ? names.filter(n=>n.toLowerCase().includes(v)) : names);
+}
+
+function acDelay(id){
+  setTimeout(()=>{
+    const drop=document.getElementById(id);
+    if(drop) drop.style.display='none';
+  },160);
+}
+
+function acSelect(e, item){
+  e.preventDefault();
+  const drop=item.closest('.ac-drop');
+  const inp=drop.previousElementSibling;
+  inp.value=item.dataset.val;
+  inp.dispatchEvent(new Event('input'));
+  drop.style.display='none';
+}
+
+function acKey(e, ri, ci, id){
+  const drop=document.getElementById(id);
+  const open=drop && drop.style.display!=='none';
+  if(open){
+    const items=[...drop.querySelectorAll('.ac-item')];
+    const cur=drop.querySelector('.ac-item.ac-active');
+    let idx=cur ? items.indexOf(cur) : -1;
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      items.forEach(el=>el.classList.remove('ac-active'));
+      idx=Math.min(idx+1,items.length-1);
+      if(items[idx]){ items[idx].classList.add('ac-active'); items[idx].scrollIntoView({block:'nearest'}); }
+      return;
+    }
+    if(e.key==='ArrowUp'){
+      e.preventDefault();
+      items.forEach(el=>el.classList.remove('ac-active'));
+      idx=Math.max(idx-1,0);
+      if(items[idx]){ items[idx].classList.add('ac-active'); items[idx].scrollIntoView({block:'nearest'}); }
+      return;
+    }
+    if(e.key==='Enter' && cur){
+      e.preventDefault();
+      const inp=drop.previousElementSibling;
+      inp.value=cur.dataset.val;
+      inp.dispatchEvent(new Event('input'));
+      drop.style.display='none';
+      return;
+    }
+    if(e.key==='Escape'){ drop.style.display='none'; return; }
+  }
+  navKey(e,ri,ci);
+}
+
+/* ══════════════════════════════════════════════
+   CROSS HIGHLIGHT (link ↔ table row)
+══════════════════════════════════════════════ */
+function highlightByLink(srcName, tgtName){
+  const svg=document.getElementById('svg');
+  svg.querySelectorAll('.sk-link').forEach(el=>{
+    const s=el.getAttribute('data-src'), t=el.getAttribute('data-tgt');
+    el.style.opacity=(s===srcName && t===tgtName) ? '1.0' : '0.4';
+  });
+  document.querySelectorAll('#tb tr[data-i]').forEach(tr=>{
+    const ri=+tr.getAttribute('data-i');
+    const r=rows[ri]; if(!r) return;
+    const effTo=axis===null ? r.to : (r[axis]||'(未設定)');
+    if(r.from===srcName && effTo===tgtName) tr.classList.add('hl-row');
+    else tr.classList.remove('hl-row');
+  });
+}
+function clearLinkHighlight(){
+  document.querySelectorAll('#tb tr.hl-row').forEach(tr=>tr.classList.remove('hl-row'));
+  const svg=document.getElementById('svg');
+  if(focusedNode) applyFocus(focusedNode);
+  else svg.querySelectorAll('.sk-link').forEach(el=>el.style.opacity=modeConf().linkOpacity);
+}
+function rowHover(i){
+  const r=rows[i]; if(!r||!r.from) return;
+  const effTo=axis===null ? r.to : (r[axis]||'(未設定)');
+  highlightByLink(r.from, effTo);
+}
+function rowUnhover(){ clearLinkHighlight(); }
+
+/* ══════════════════════════════════════════════
+   COLUMN RESIZE
+══════════════════════════════════════════════ */
+let _rsz={active:false,th:null,startX:0,startW:0,handle:null};
+function colRszStart(e,el){
+  e.preventDefault(); e.stopPropagation();
+  const th=el.parentElement;
+  _rsz={active:true,th,startX:e.clientX,startW:th.offsetWidth,handle:el};
+  el.classList.add('rsz-active');
+  document.addEventListener('mousemove',colRszMove);
+  document.addEventListener('mouseup',colRszEnd);
+}
+function colRszMove(e){
+  if(!_rsz.active) return;
+  const w=Math.max(60,_rsz.startW+(e.clientX-_rsz.startX));
+  _rsz.th.style.width=w+'px';
+  _rsz.th.style.minWidth=w+'px';
+}
+function colRszEnd(){
+  if(!_rsz.active) return;
+  _rsz.active=false;
+  _rsz.handle?.classList.remove('rsz-active');
+  document.removeEventListener('mousemove',colRszMove);
+  document.removeEventListener('mouseup',colRszEnd);
+}
+
+/* ══════════════════════════════════════════════
+   ROW DRAG-TO-REORDER
+══════════════════════════════════════════════ */
+let dragSrcRow=-1;
+function rowDragStart(e,i){
+  dragSrcRow=i;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain',i);
+  setTimeout(()=>{ const tr=document.querySelector(`tr[data-i="${i}"]`); if(tr) tr.classList.add('row-dragging'); },0);
+}
+function rowDragEnd(){
+  document.querySelectorAll('tr.row-dragging,tr.row-drag-over').forEach(el=>{
+    el.classList.remove('row-dragging','row-drag-over');
+  });
+}
+function rowDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  e.currentTarget.classList.add('row-drag-over');
+}
+function rowDragLeave(e){ e.currentTarget.classList.remove('row-drag-over'); }
+function rowDrop(e,i){
+  e.preventDefault();
+  e.currentTarget.classList.remove('row-drag-over');
+  if(dragSrcRow>=0 && dragSrcRow!==i){
+    const [moved]=rows.splice(dragSrcRow,1);
+    rows.splice(i,0,moved);
+    renderTable();draw();saveLS();
+  }
+  dragSrcRow=-1;
+}
+
+/* ══════════════════════════════════════════════
+   NODE CONTEXT MENU
+══════════════════════════════════════════════ */
+function nodeCtxMenu(e, d){
+  ctxNode = d.name;
+  const m = document.getElementById('node-ctx');
+  m.style.display = 'block';
+  const mw = 176, mh = 120;
+  const x = Math.min(e.clientX, window.innerWidth - mw - 8);
+  const y = Math.min(e.clientY, window.innerHeight - mh - 8);
+  m.style.left = x + 'px';
+  m.style.top = y + 'px';
+}
+
+function nodeCtxAction(action){
+  ctxAction = action;
+  document.getElementById('node-ctx').style.display = 'none';
+
+  if(action === 'color'){ openCpick(ctxNode); return; }
+
+  const allNodes = [...new Set(rows.flatMap(r=>[r.from||'',r.to||'']).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'ja'));
+  const listId = 'ndlg-list';
+  const datalist = `<datalist id="${listId}">${allNodes.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
+  const inpStyle = 'display:block;width:100%;margin-top:4px;padding:7px 10px;border:1px solid #c0d0e0;border-radius:6px;font:13px inherit;box-sizing:border-box';
+
+  const title = document.getElementById('node-dlg-title');
+  const body = document.getElementById('node-dlg-body');
+
+  if(action === 'add-in'){
+    title.textContent = `「${ctxNode}」への流入元を追加`;
+    body.innerHTML = `${datalist}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="font-size:12px;font-weight:600;color:#4a6080">流入元ノード名
+          <input id="ndlg-inp" list="${listId}" placeholder="ノード名" autocomplete="off" style="${inpStyle}">
+        </label>
+        <label style="font-size:12px;font-weight:600;color:#4a6080">金額
+          <input id="ndlg-amt" type="number" placeholder="0" min="0" style="${inpStyle}">
+        </label>
+      </div>`;
+  } else if(action === 'add-out'){
+    title.textContent = `「${ctxNode}」からの流出先を追加`;
+    body.innerHTML = `${datalist}
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <label style="font-size:12px;font-weight:600;color:#4a6080">流出先ノード名
+          <input id="ndlg-inp" list="${listId}" placeholder="ノード名" autocomplete="off" style="${inpStyle}">
+        </label>
+        <label style="font-size:12px;font-weight:600;color:#4a6080">金額
+          <input id="ndlg-amt" type="number" placeholder="0" min="0" style="${inpStyle}">
+        </label>
+      </div>`;
+  } else if(action === 'rename'){
+    title.textContent = `「${ctxNode}」のノード名を変更`;
+    body.innerHTML = `${datalist}
+      <label style="font-size:12px;font-weight:600;color:#4a6080">新しいノード名
+        <input id="ndlg-inp" list="${listId}" placeholder="新しい名前" value="${esc(ctxNode)}" autocomplete="off" style="${inpStyle}">
+      </label>`;
+  }
+
+  const ov = document.getElementById('node-dlg-overlay');
+  ov.style.display = 'flex';
+  setTimeout(()=>{
+    const inp = document.getElementById('ndlg-inp');
+    if(inp){ inp.focus(); if(action==='rename') inp.select(); }
+    document.querySelectorAll('#ndlg-inp,#ndlg-amt').forEach(el=>{
+      el.addEventListener('keydown', e=>{ if(e.key==='Enter') nodeCtxConfirm(); });
+    });
+  }, 50);
+}
+
+function nodeCtxConfirm(){
+  const inp = document.getElementById('ndlg-inp');
+  const newName = inp ? inp.value.trim() : '';
+
+  if(ctxAction === 'add-in' || ctxAction === 'add-out'){
+    if(!newName){ if(inp) inp.style.outline='2px solid #ef4444'; return; }
+    const amtEl = document.getElementById('ndlg-amt');
+    const amt = parseFloat(amtEl ? amtEl.value : '0') || 0;
+    const newRow = { from:'', to:'', amount:amt };
+    cols.forEach(c=>{ newRow[c]=''; });
+    if(ctxAction === 'add-in'){ newRow.from = newName; newRow.to = ctxNode; }
+    else { newRow.from = ctxNode; newRow.to = newName; }
+    rows.push(newRow);
+  } else if(ctxAction === 'rename'){
+    if(!newName || newName === ctxNode){ closeNodeDlg(); return; }
+    rows.forEach(r=>{
+      if(r.from === ctxNode) r.from = newName;
+      if(r.to === ctxNode) r.to = newName;
+    });
+    if(focusedNode === ctxNode) focusedNode = newName;
+    if(labelOffsets[ctxNode]){ labelOffsets[newName]=labelOffsets[ctxNode]; delete labelOffsets[ctxNode]; }
+  }
+
+  closeNodeDlg();
+  saveLS(); renderTable(); renderAxis(); draw();
+}
+
+function closeNodeDlg(){
+  document.getElementById('node-dlg-overlay').style.display = 'none';
+  ctxNode = null; ctxAction = null;
+}
+
+function nodeDlgBg(e){
+  if(e.target === document.getElementById('node-dlg-overlay')) closeNodeDlg();
+}
+
+/* ══════════════════════════════════════════════
+   BACKGROUND CONTEXT MENU
+══════════════════════════════════════════════ */
+function caCtxMenu(e){
+  if(e.target.closest('.sk-node')) return;
+  e.preventDefault();
+  const m=document.getElementById('bg-ctx');
+  m.style.display='block';
+  const x=Math.min(e.clientX,window.innerWidth-160);
+  const y=Math.min(e.clientY,window.innerHeight-60);
+  m.style.left=x+'px'; m.style.top=y+'px';
+}
+function bgCtxColor(){
+  document.getElementById('bg-ctx').style.display='none';
+  openCpick('\x00bg');
+}
+
+/* ══════════════════════════════════════════════
+   COLOR PICKER
+══════════════════════════════════════════════ */
+const CPICK_PAL=['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899',
+                 '#14b8a6','#84cc16','#f59e0b','#10b981','#6366f1','#a855f7','#64748b','#1e293b'];
+
+function openCpick(nodeName){
+  cpickTarget=nodeName;
+  const isBg=nodeName==='\x00bg';
+  const cur=isBg?(customBgColor||modeConf().bg):(customNodeColors[nodeName]||gc(nodeName));
+  document.getElementById('cpick-title').textContent=isBg?'背景色を変更':`「${nodeName}」のノードカラー`;
+  document.getElementById('cpick-prev').style.background=cur;
+  document.getElementById('cpick-hex').value=cur;
+  const pal=document.getElementById('cpick-pal');
+  pal.innerHTML=CPICK_PAL.map(c=>`<div title="${c}" onclick="cpickSel('${c}')"
+    style="height:24px;border-radius:4px;background:${c};cursor:pointer;border:2px solid ${cur.toLowerCase()===c?'#1e293b':'transparent'};box-sizing:border-box;transition:transform .1s"
+    onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform=''"></div>`).join('');
+  document.getElementById('cpick-ov').style.display='flex';
+  setTimeout(()=>document.getElementById('cpick-hex').focus(),30);
+}
+
+function cpickBg(e){ if(e.target===document.getElementById('cpick-ov')) cpickCancel(); }
+function cpickCancel(){ document.getElementById('cpick-ov').style.display='none'; cpickTarget=null; }
+
+function cpickSel(hex){
+  document.getElementById('cpick-prev').style.background=hex;
+  document.getElementById('cpick-hex').value=hex;
+  document.querySelectorAll('#cpick-pal div').forEach(d=>{
+    d.style.borderColor=d.getAttribute('title')===hex?'#1e293b':'transparent';
+  });
+}
+function cpickHex(){
+  const v=document.getElementById('cpick-hex').value.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(v)){
+    document.getElementById('cpick-prev').style.background=v;
+    document.querySelectorAll('#cpick-pal div').forEach(d=>{
+      d.style.borderColor=d.getAttribute('title').toLowerCase()===v.toLowerCase()?'#1e293b':'transparent';
+    });
+  }
+}
+function cpickOk(){
+  if(!cpickTarget) return;
+  const v=document.getElementById('cpick-hex').value.trim();
+  if(!/^#[0-9a-fA-F]{6}$/.test(v)){
+    document.getElementById('cpick-hex').style.outline='2px solid #ef4444'; return;
+  }
+  if(cpickTarget==='\x00bg') customBgColor=v;
+  else customNodeColors[cpickTarget]=v;
+  document.getElementById('cpick-ov').style.display='none'; cpickTarget=null;
+  saveLS(); draw();
+}
+function cpickReset(){
+  if(!cpickTarget) return;
+  if(cpickTarget==='\x00bg') customBgColor=null;
+  else delete customNodeColors[cpickTarget];
+  document.getElementById('cpick-ov').style.display='none'; cpickTarget=null;
+  saveLS(); draw();
+}
+
+/* ══════════════════════════════════════════════
+   COLUMN CONTEXT MENU
+══════════════════════════════════════════════ */
+function colCtxMenu(e, i){
+  e.preventDefault();
+  ctxColIdx = i;
+  const m = document.getElementById('col-ctx');
+  m.style.display = 'block';
+  const x = Math.min(e.clientX, window.innerWidth - 180);
+  const y = Math.min(e.clientY, window.innerHeight - 60);
+  m.style.left = x + 'px';
+  m.style.top = y + 'px';
+}
+
+function colCtxDelete(){
+  document.getElementById('col-ctx').style.display = 'none';
+  if(ctxColIdx < 0 || ctxColIdx >= cols.length){ ctxColIdx=-1; return; }
+  const colName = cols[ctxColIdx];
+  if(!confirm(`列「${colName}」を削除しますか？\nこの列のデータもすべて削除されます。`)){
+    ctxColIdx = -1; return;
+  }
+  cols.splice(ctxColIdx, 1);
+  rows.forEach(r => delete r[colName]);
+  if(axis === colName) axis = null;
+  ctxColIdx = -1;
+  saveLS(); renderTable(); renderAxis(); draw();
+}
+
+/* ══════════════════════════════════════════════
+   NODE COLORS IN TABLE
+══════════════════════════════════════════════ */
+function applyNodeColors(){
+  document.querySelectorAll('.from-inp,.to-inp').forEach(inp=>{
+    const td=inp.parentElement;
+    const c=customNodeColors[inp.value]||cmap[inp.value];
+    if(c && inp.value){
+      td.style.borderLeft=`3px solid ${c}`;
+      td.style.paddingLeft='5px';
+      td.style.background=c+'28';
+    } else {
+      td.style.borderLeft='';
+      td.style.paddingLeft='';
+      td.style.background='';
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════
+   SIZE BADGE
+══════════════════════════════════════════════ */
+function gcd(a,b){ return b===0?a:gcd(b,a%b); }
+function aspectLabel(w,h){
+  const common=[[16,9],[4,3],[3,2],[16,10],[2,1],[1,1]];
+  const r=w/h;
+  for(const[a,b] of common){ if(Math.abs(r-a/b)<0.03) return `${a}:${b}`; }
+  const g=gcd(Math.round(w),Math.round(h));
+  return `${Math.round(w/g)}:${Math.round(h/g)}`;
+}
+function updateSizeBadge(){
+  const ca=document.getElementById('ca');
+  const badge=document.getElementById('size-badge');
+  if(!badge) return;
+  const w=ca.clientWidth, h=ca.clientHeight;
+  badge.textContent=`W: ${w}px / H: ${h}px（${aspectLabel(w,h)}）`;
+}
+
+/* ══════════════════════════════════════════════
+   CHART HEIGHT RESIZE HANDLE
+══════════════════════════════════════════════ */
+(function(){
+  const handle=document.getElementById('rp-resize');
+  const ca=document.getElementById('ca');
+  let drag=false, startY=0, startH=0;
+  handle.addEventListener('mousedown',e=>{
+    drag=true; startY=e.clientY; startH=ca.clientHeight;
+    handle.classList.add('rdrag');
+    document.body.style.userSelect='none';
+    document.body.style.cursor='ns-resize';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!drag) return;
+    const newH=Math.max(120, Math.min(window.innerHeight-200, startH+(e.clientY-startY)));
+    ca.style.flex='none';
+    ca.style.height=newH+'px';
+    updateSizeBadge();
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!drag) return;
+    drag=false;
+    handle.classList.remove('rdrag');
+    document.body.style.userSelect='';
+    document.body.style.cursor='';
+    draw();
+  });
+})();
+
+/* ══════════════════════════════════════════════
+   RESIZE OBSERVER
+   Debounced + size-guard: only redraw when #ca dimensions actually changed.
+   Prevents the SVG-resize → observer → redraw → SVG-resize loop.
+══════════════════════════════════════════════ */
+(function(){
+  // borderBoxSize tracks the element's own dimensions, NOT the content area.
+  // This means a vertical scrollbar appearing inside #ca does NOT change
+  // borderBoxSize.inlineSize — so the observer never fires from a scrollbar alone,
+  // preventing the SVG-expand → scrollbar → redraw → SVG-reset loop.
+  let _lastW=0, _lastH=0, _roTick=null;
+  const _ro=new ResizeObserver(entries=>{
+    const bbs=entries[0].borderBoxSize[0];
+    const newW=Math.round(bbs.inlineSize);
+    const newH=Math.round(bbs.blockSize);
+    if(newW===_lastW && newH===_lastH) return;
+    _lastW=newW; _lastH=newH;
+    clearTimeout(_roTick);
+    _roTick=setTimeout(()=>{ draw(); updateSizeBadge(); },150);
+  });
+  _ro.observe(document.getElementById('ca'));
+})();
+
+/* ══════════════════════════════════════════════
+   KEYBOARD / GLOBAL HANDLERS
+══════════════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    document.getElementById('modal-overlay').classList.remove('open');
+    closeNodeDlg();
+    cpickCancel();
+    document.getElementById('node-ctx').style.display='none';
+    document.getElementById('col-ctx').style.display='none';
+    document.getElementById('bg-ctx').style.display='none';
+  }
+});
+document.addEventListener('click',()=>{
+  document.getElementById('node-ctx').style.display='none';
+  document.getElementById('col-ctx').style.display='none';
+  document.getElementById('bg-ctx').style.display='none';
+});
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+function init(){
+  const restored=loadLS();
+  if(!restored){ rows=SAMPLE.map(r=>({...r})); }
+  document.getElementById('color-mode').value=colorMode;
+  renderTable();
+  renderAxis();
+  draw();
+  updateSizeBadge();
+}
+
+init();
+</script>
+</body>
+</html>
